@@ -1,5 +1,44 @@
+import { fallbackIntent } from "./fallbackIntent.js";
 import ai from "../config/gemini.js";
 import SYSTEM_PROMPT from "./prompt.js";
+
+const sleep = (ms) =>
+    new Promise(resolve => setTimeout(resolve, ms));
+
+const manufacturerAliases = {
+    "Honeywell": "Honeywell Aerospace",
+    "GE": "GE Aerospace",
+    "GE Aviation": "GE Aerospace",
+    "Collins": "Collins Aerospace",
+    "Pratt": "Pratt & Whitney",
+    "Safran": "Safran Aircraft Engines"
+};
+
+const certificationAliases = {
+    "FAA": "ACTIVE",
+    "FAA Certified": "ACTIVE",
+    "Certified": "ACTIVE",
+    "Active": "ACTIVE",
+    "active": "ACTIVE",
+
+    "Pending": "PENDING",
+    "pending": "PENDING",
+
+    "Expired": "EXPIRED",
+    "expired": "EXPIRED"
+};
+
+const aircraftAliases = {
+
+    "Airbus A320": "Airbus A320-200",
+    "A320": "Airbus A320-200",
+    "Airbus A320-200": "Airbus A320-200",
+
+    "Boeing 737": "Boeing 737-800",
+    "737": "Boeing 737-800",
+    "Boeing 737-800": "Boeing 737-800"
+
+};
 
 export async function extractIntent(message) {
 
@@ -11,20 +50,73 @@ User Query:
 ${message}
 `;
 
-    const response = await ai.models.generateContent({
+    let lastError;
 
-        model: "gemini-2.5-flash",
+    for (let attempt = 1; attempt <= 3; attempt++) {
 
-        contents: prompt
+        try {
 
-    });
+            const response =
+                await ai.models.generateContent({
 
-    let text = response.text.trim();
+                    model: "gemini-2.5-flash",
 
-    text = text.replace(/```json/g, "");
+                    contents: prompt
 
-    text = text.replace(/```/g, "");
+                });
 
-    return JSON.parse(text);
+            let text = response.text.trim();
+
+text = text.replace(/```json/g, "");
+text = text.replace(/```/g, "");
+
+const intent = JSON.parse(text);
+
+if (intent.manufacturer) {
+
+    intent.manufacturer =
+        manufacturerAliases[intent.manufacturer] ??
+        intent.manufacturer;
+
+}
+
+if (intent.certificationStatus) {
+
+    intent.certificationStatus =
+        certificationAliases[intent.certificationStatus] ??
+        intent.certificationStatus;
+
+}
+
+if (intent.aircraft) {
+
+    intent.aircraft =
+        aircraftAliases[intent.aircraft] ??
+        intent.aircraft;
+
+}
+
+return intent;
+        }
+
+        catch (err) {
+
+            lastError = err;
+
+            console.log(
+                `Gemini Retry ${attempt}/3`
+            );
+
+            await sleep(1500);
+
+        }
+
+    }
+
+    console.log(
+    "Gemini unavailable. Using fallback parser."
+);
+
+return fallbackIntent(message);
 
 }

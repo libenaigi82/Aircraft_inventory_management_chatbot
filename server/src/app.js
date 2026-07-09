@@ -1,3 +1,4 @@
+import logger from "./middleware/logger.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -26,6 +27,7 @@ app.get("/", (req, res) => {
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/ai", aiRoutes);
+app.use(logger);
 
 app.use((req, res) => {
     res.status(404).json({

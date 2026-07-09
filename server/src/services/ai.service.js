@@ -1,83 +1,108 @@
 import { extractIntent } from "../ai/intentExtractor.js";
-import * as inventoryService from "./inventory.service.js";
 import { formatResponse } from "../ai/responseFormatter.js";
+
+import * as inventory from "./inventory.service.js";
 
 export async function processQuery(message) {
 
     const intent = await extractIntent(message);
 
-    let data = [];
+    let result = null;
 
     switch (intent.intent) {
 
         case "PART_SEARCH":
 
-            data = await inventoryService.getAllParts({
+            result = await inventory.getAllParts({
 
-                manufacturer: intent.manufacturer || undefined,
+                manufacturer: intent.manufacturer,
 
-                ataChapter: intent.ataChapter || undefined
+                ataChapter: intent.ataChapter,
+
+                certificationStatus: intent.certificationStatus,
+
+                keyword: intent.keyword
 
             });
-
-            if (intent.keyword) {
-
-                data = data.filter(part =>
-
-                    part.partName
-                        .toLowerCase()
-                        .includes(intent.keyword.toLowerCase())
-
-                );
-
-            }
 
             break;
 
         case "LOW_STOCK":
 
-            data = await inventoryService.getLowStock();
+            result = await inventory.getLowStock();
 
             break;
 
         case "MANUFACTURER_SEARCH":
 
-            data = await inventoryService.getManufacturers();
+    result = await inventory.getPartsByManufacturer(
 
-            break;
+        intent.manufacturer
+
+    );
+
+    break;
 
         case "COUNT_PARTS":
 
-            data = await inventoryService.getAllParts();
+            result = {
 
-            data = {
-
-                totalParts: data.length
+                totalParts: await inventory.countParts()
 
             };
 
             break;
 
-        case "ATA_SEARCH":
+        case "WAREHOUSE_LOOKUP":
 
-            data = await inventoryService.getAllParts({
+            result = await inventory.getWarehouseInventory(
 
-                ataChapter: intent.ataChapter
+                intent.warehouse
 
-            });
+            );
 
             break;
 
+        case "AIRCRAFT_COMPATIBILITY":
+
+    result = await inventory.getAircraftCompatibility(
+
+        intent.aircraft
+
+    );
+
+    break;
+
+    case "ATA_SEARCH":
+
+    result = await inventory.getPartsByATA(
+
+        intent.ataChapter
+
+    );
+
+    break;
+
+    case "CERTIFICATION_SEARCH":
+
+    result = await inventory.getCertifiedParts(
+
+        intent.certificationStatus
+
+    );
+
+    break;
+
         default:
 
-            data = {
+            result = {
 
-                message: "Intent not supported yet."
+                message: "Sorry, I don't understand that request yet."
 
             };
 
     }
 
-    return formatResponse(intent, data);
+    return formatResponse(intent, result);
 
 }
