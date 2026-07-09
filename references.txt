@@ -1,0 +1,160 @@
+GET /api/inventory/parts
+→ Returns all aircraft parts.
+
+GET /api/inventory/parts/ATA21-001
+→ Returns a single part along with its aircraft compatibility.
+
+GET /api/inventory/search?q=pump
+→ Searches parts by part name or part number.
+
+GET /api/inventory/parts?manufacturer=Honeywell Aerospace
+→ Filters parts by manufacturer.
+
+GET /api/inventory/parts?ataChapter=21
+→ Filters parts by ATA Chapter.
+
+GET /api/inventory/parts?certificationStatus=ACTIVE
+→ Filters parts by certification status.
+
+GET /api/inventory/stock
+→ Returns all stock records.
+
+GET /api/inventory/stock?code=BLR-MAIN
+→ Returns stock available in a specific warehouse.
+
+GET /api/inventory/low-stock
+→ Returns all low-stock inventory items.
+
+GET /api/inventory/manufacturers
+→ Returns the list of manufacturers.
+
+GET /api/inventory/aircraft
+→ Returns the list of supported aircraft.
+
+//S1:
+
+Airbus Commercial Aircraft: https://www.airbus.com/en/products-services/commercial-aircraft
+Boeing Commercial Airplanes: https://www.boeing.com/commercial/
+
+Why these engine names?
+
+They are genuine engine options:
+
+Airbus A320-200
+
+Common engines:
+
+CFM International CFM56
+IAE V2500
+
+Official reference:
+https://www.airbus.com/en/products-services/commercial-aircraft/a320-family
+
+Boeing 737-800
+
+Engine:
+
+CFM56-7B
+
+Official reference:
+https://www.boeing.com/commercial/737ng/
+
+
+
+
+
+
+S2:ATA
+📚 Data Source
+
+Official references:
+
+ATA e-Business Program: https://ataebiz.org/standards/
+Aviation Maintenance ATA Chapter Reference:
+https://en.wikipedia.org/wiki/ATA_100 (good for quickly viewing the chapter list)
+
+These chapter names are industry standards.
+
+
+
+
+
+
+s3: manufacturers
+For example:
+
+Hydraulic Pump
+        │
+        ▼
+Honeywell
+
+Notice:
+
+Manufacturer ≠ Supplier
+
+Example
+
+Manufacturer
+↓
+
+Honeywell
+
+↓
+
+Supplier
+
+↓
+
+Satair
+
+Honeywell manufactures the part.
+
+Satair distributes/supplies it.
+
+
+
+
+
+
+Step 4 — suppliers.js
+Manufacturer vs Supplier
+
+This distinction is important.
+
+Manufacturer	Supplier
+Makes the part	Sells/Distributes the part
+Honeywell	Satair
+Safran	Boeing Distribution
+Collins Aerospace	AAR Corp
+
+This makes your database much closer to a real ERP/MRO system.
+
+
+
+
+
+
+
+Step 5 — warehouses.js
+
+Unlike the previous files, this one is operational data.
+
+Since no airline publicly shares warehouse locations and codes, we'll use realistic educational warehouses and clearly document them as simulated.
+
+This is completely acceptable for academic projects.
+
+Why these warehouses?
+
+We'll assume our AI system is deployed for an airline with two MRO hubs.
+
+Main Hub
+BLR-MRO
+
+Bengaluru is one of India's largest aviation and aerospace hubs.
+
+Secondary Hub
+DEL-MRO
+
+Delhi is another major aviation maintenance location.
+
+This gives us a realistic multi-warehouse inventory system.

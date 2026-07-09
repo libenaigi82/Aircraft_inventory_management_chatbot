@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CertificationStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+}
+
+enum PurchaseOrderStatus {
+  PENDING
+  APPROVED
+  DELIVERED
+  CANCELLED
+}
+
+enum WarehouseType {
+  MAIN
+  SECONDARY
+}
+
+enum StockTransactionType {
+  RECEIVED
+  ISSUED
+  RESERVED
+  RELEASED
+  RETURNED
+  ADJUSTED
+}
+
+model Aircraft {
+  id           String  @id @default(uuid())
+  model        String  @unique
+  manufacturer String
+  family       String?
+  engineType   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  compatibilities AircraftCompatibility[]
+
+  @@index([manufacturer])
+}
+
+model ATAChapter {
+  id          String  @id @default(uuid())
+  chapter     Int     @unique
+  title       String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parts PartMaster[]
+
+  @@index([chapter])
+}
+
+model Manufacturer {
+  id      String  @id @default(uuid())
+  name    String  @unique
+  country String?
+  website String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parts PartMaster[]
+
+  @@index([name])
+}
+
+model Supplier {
+  id      String  @id @default(uuid())
+  name    String  @unique
+  email   String?
+  phone   String?
+  country String?
+  website String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parts          PartMaster[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([name])
+}
+
+model Warehouse {
+  id       String        @id @default(uuid())
+  code     String        @unique
+  name     String        @unique
+  location String
+  type     WarehouseType
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stocks Stock[]
+
+  @@index([location])
+}
+
+model PartMaster {
+  id String @id @default(uuid())
+
+  partNumber  String  @unique
+  partName    String
+  description String?
+
+  manufacturerId String
+  supplierId     String
+  ataChapterId   String
+
+  unitCost Decimal @db.Decimal(10, 2)
+  currency String  @default("USD")
+
+  shelfLifeMonths Int?
+
+  certificationStatus CertificationStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  manufacturer Manufacturer @relation(fields: [manufacturerId], references: [id])
+  supplier     Supplier     @relation(fields: [supplierId], references: [id])
+  ataChapter   ATAChapter   @relation(fields: [ataChapterId], references: [id])
+
+  compatibilities AircraftCompatibility[]
+  stocks          Stock[]
+  purchaseItems   PurchaseOrderItem[]
+
+  @@index([partNumber])
+  @@index([partName])
+}
+
+model AircraftCompatibility {
+  id String @id @default(uuid())
+
+  aircraftId String
+  partId     String
+
+  aircraft Aircraft   @relation(fields: [aircraftId], references: [id], onDelete: Cascade)
+  part     PartMaster @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([aircraftId, partId])
+}
+
+model Stock {
+  id String @id @default(uuid())
+
+  warehouseId String
+  partId      String
+
+  currentStock  Int
+  reservedStock Int @default(0)
+
+  minimumStock Int
+  maximumStock Int?
+
+  rack String?
+  bin  String?
+
+  lastUpdated DateTime @updatedAt
+
+  warehouse Warehouse  @relation(fields: [warehouseId], references: [id])
+  part      PartMaster @relation(fields: [partId], references: [id])
+
+  transactions StockTransaction[]
+
+  @@unique([warehouseId, partId])
+  @@index([warehouseId])
+  @@index([partId])
+}
+
+model StockTransaction {
+  id String @id @default(uuid())
+
+  stockId String
+
+  transactionType StockTransactionType
+
+  quantityChanged Int
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([stockId])
+  @@index([transactionType])
+}
+
+model PurchaseOrder {
+  id String @id @default(uuid())
+
+  supplierId String
+
+  status PurchaseOrderStatus
+
+  expectedDelivery DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  items PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id String @id @default(uuid())
+
+  purchaseOrderId String
+  partId          String
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  part PartMaster @relation(fields: [partId], references: [id])
+
+  @@unique([purchaseOrderId, partId])
+}
