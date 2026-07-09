@@ -1,20 +1,23 @@
 import { fallbackIntent } from "./fallbackIntent.js";
-import ai from "../config/gemini.js";
+import groq from "../config/groq.js";
 import SYSTEM_PROMPT from "./prompt.js";
 
 const sleep = (ms) =>
     new Promise(resolve => setTimeout(resolve, ms));
 
 const manufacturerAliases = {
+
     "Honeywell": "Honeywell Aerospace",
     "GE": "GE Aerospace",
     "GE Aviation": "GE Aerospace",
     "Collins": "Collins Aerospace",
     "Pratt": "Pratt & Whitney",
-    "Safran": "Safran Aircraft Engines"
+    "Safran": "Safran"
+
 };
 
 const certificationAliases = {
+
     "FAA": "ACTIVE",
     "FAA Certified": "ACTIVE",
     "Certified": "ACTIVE",
@@ -26,27 +29,23 @@ const certificationAliases = {
 
     "Expired": "EXPIRED",
     "expired": "EXPIRED"
+
 };
 
 const aircraftAliases = {
-    // Airbus
-    "A320": "Airbus A320-200",
-    "a320": "Airbus A320-200",
-    "Airbus A320": "Airbus A320-200",
-    "Airbus A320-200": "Airbus A320-200",
 
-    // Boeing 737
-    "737": "Boeing 737-800",
-    "737-800": "Boeing 737-800",
-    "B737": "Boeing 737-800",
-    "b737": "Boeing 737-800",
-    "B737-800": "Boeing 737-800",
-    "b737-800": "Boeing 737-800",
+    "Airbus A320": "Airbus A320-200",
+    "A320": "Airbus A320-200",
+
     "Boeing 737": "Boeing 737-800",
-    "Boeing 737-800": "Boeing 737-800"
+    "737": "Boeing 737-800"
+
 };
 
-export async function extractIntent(message) {
+export async function extractIntent(
+    message,
+    options = {}
+) {
 
     const prompt = `
 ${SYSTEM_PROMPT}
@@ -62,70 +61,87 @@ ${message}
 
         try {
 
-            const response =
-                await ai.models.generateContent({
+            const response = await groq.chat.completions.create({
 
-                    model: "gemini-2.5-flash",
+    model: "llama-3.3-70b-versatile",
 
-                    contents: prompt
+    temperature: options.temperature ?? 0,
 
-                });
+    top_p: options.top_p ?? 1,
 
-            let text = response.text.trim();
+    response_format: {
 
-text = text.replace(/```json/g, "");
-text = text.replace(/```/g, "");
+        type: "json_object"
 
-const intent = JSON.parse(text);
+    },
 
-if (intent.manufacturer) {
+    messages: [
 
-    intent.manufacturer =
-        manufacturerAliases[intent.manufacturer] ??
-        intent.manufacturer;
+        {
+            role: "system",
+            content: SYSTEM_PROMPT
+        },
 
-}
+        {
+            role: "user",
+            content: message
+        }
 
-if (intent.certificationStatus) {
+    ]
 
-    intent.certificationStatus =
-        certificationAliases[intent.certificationStatus] ??
-        intent.certificationStatus;
+});
+            const intent = JSON.parse(
 
-}
+                response.choices[0].message.content
 
-if (intent.aircraft) {
+            );
 
-    const aircraft = intent.aircraft.trim();
+            if (intent.manufacturer) {
 
-    intent.aircraft =
-        aircraftAliases[aircraft] ??
-        aircraftAliases[aircraft.toLowerCase()] ??
-        aircraft;
+                intent.manufacturer =
+                    manufacturerAliases[intent.manufacturer] ??
+                    intent.manufacturer;
 
-}
+            }
 
-return intent;
+            if (intent.certificationStatus) {
+
+                intent.certificationStatus =
+                    certificationAliases[intent.certificationStatus] ??
+                    intent.certificationStatus;
+
+            }
+
+            if (intent.aircraft) {
+
+                intent.aircraft =
+                    aircraftAliases[intent.aircraft] ??
+                    intent.aircraft;
+
+            }
+
+            return intent;
+
         }
 
         catch (err) {
 
             lastError = err;
 
-            console.log(
-                `Gemini Retry ${attempt}/3`
-            );
+            console.log(`Groq Retry ${attempt}/3`);
 
-            await sleep(1500);
+            await sleep(1000);
 
         }
 
     }
 
     console.log(
-    "Gemini unavailable. Using fallback parser."
-);
 
-return fallbackIntent(message);
+        "Groq unavailable. Using fallback parser."
+
+    );
+
+    return fallbackIntent(message);
 
 }

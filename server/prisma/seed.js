@@ -228,7 +228,10 @@ async function seedStock(lookups, allParts) {
 
     for (const part of allParts) {
 
-      const currentStock = random(20, 80);
+      const currentStock =
+    Math.random() < 0.3
+        ? random(2, 8)      // 30% of items are low stock
+        : random(20, 80);   // remaining items have healthy stock
 
       const reservedStock = random(0, 5);
 

@@ -6,9 +6,14 @@ import { initialChatMessages } from "../../data/chatData.js";
 import api from "../../services/aiApi.js";
 
 function AIAssistant() {
+  
   const [messages, setMessages] = useState(initialChatMessages);
-  const [isTyping, setIsTyping] = useState(false);
 
+const [isTyping, setIsTyping] = useState(false);
+
+const [temperature, setTemperature] = useState(0);
+
+const [topP, setTopP] = useState(1);
   const handleSendMessage = async (text) => {
     if (!text.trim()) return;
 
@@ -23,29 +28,37 @@ function AIAssistant() {
 
     try {
       const { data } = await api.post("/ai/chat", {
-        message: text,
-      });
+    message: text,
+    temperature,
+    top_p: topP,
+});
 
       let replyText = data.reply;
 
       // Show returned data if available
-      if (Array.isArray(data.data) && data.data.length > 0) {
-        replyText += "\n\n";
+      if (data.data) {
 
-        data.data.forEach((item, index) => {
-          replyText += `${index + 1}. ${
-            item.partNumber || item.part_number || "Part"
-          }`;
+  replyText += "\n\n";
 
-          if (item.partName || item.name)
-            replyText += ` - ${item.partName || item.name}`;
+  if (Array.isArray(data.data)) {
 
-          if (item.quantity !== undefined)
-            replyText += ` (Qty: ${item.quantity})`;
+    data.data.forEach((item, index) => {
 
-          replyText += "\n";
-        });
-      }
+      replyText += `${index + 1}. ${item.partNumber || "Part"}\n`;
+
+    });
+
+  } else {
+
+    Object.entries(data.data).forEach(([key, value]) => {
+
+      replyText += `${key}: ${JSON.stringify(value)}\n`;
+
+    });
+
+  }
+
+}
 
       const aiMessage = {
         id: Date.now() + 1,
@@ -74,11 +87,55 @@ function AIAssistant() {
   return (
     <div className="w-full xl:w-[30%] h-full glass-card rounded-xl flex flex-col overflow-hidden glow-blue-border border">
       <ChatHeader />
-      <ChatMessages messages={messages} isTyping={isTyping} />
-      <ChatInput
+      <ChatMessages
+    messages={messages}
+    isTyping={isTyping}
+/>
+
+<div className="border-t p-4 space-y-3">
+
+    <div>
+
+        <label className="text-xs">
+            Temperature (0–2): {temperature.toFixed(1)}
+        </label>
+
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            value={temperature}
+            onChange={(e)=>setTemperature(Number(e.target.value))}
+            className="w-full accent-cyan-500 cursor-pointer"
+        />
+
+    </div>
+
+    <div>
+
+        <label className="text-xs">
+            Top-P (0–1): {topP.toFixed(2)}
+        </label>
+
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={topP}
+            onChange={(e)=>setTopP(Number(e.target.value))}
+            className="w-full accent-cyan-500 cursor-pointer"
+        />
+
+    </div>
+
+    <ChatInput
         onSendMessage={handleSendMessage}
         disabled={isTyping}
-      />
+    />
+
+       </div>
     </div>
   );
 }

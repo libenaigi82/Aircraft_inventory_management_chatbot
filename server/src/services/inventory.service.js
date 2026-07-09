@@ -395,13 +395,22 @@ export async function getAircraftCompatibility(model) {
 }
 
 
-export async function getCertifiedParts(status) {
+export async function getCertifiedParts(filters = {}) {
 
     return prisma.partMaster.findMany({
 
         where: {
 
-            certificationStatus: status
+            certificationStatus: filters.certificationStatus,
+
+            manufacturer: filters.manufacturer
+                ? {
+                    name: {
+                        contains: filters.manufacturer,
+                        mode: "insensitive"
+                    }
+                }
+                : undefined
 
         },
 
@@ -409,9 +418,116 @@ export async function getCertifiedParts(status) {
 
             manufacturer: true,
 
-            ataChapter: true,
+            supplier: true,
 
-            supplier: true
+            ataChapter: true
+
+        }
+
+    });
+
+}
+
+   
+
+export async function getPartsAdvanced(filters = {}) {
+
+    const where = {};
+
+    if (filters.manufacturer) {
+        where.manufacturer = {
+            name: {
+                contains: filters.manufacturer,
+                mode: "insensitive"
+            }
+        };
+    }
+
+    if (filters.keyword) {
+
+        where.OR = [
+
+            {
+                partName: {
+                    contains: filters.keyword,
+                    mode: "insensitive"
+                }
+            },
+
+            {
+                description: {
+                    contains: filters.keyword,
+                    mode: "insensitive"
+                }
+            }
+
+        ];
+
+    }
+
+    return prisma.partMaster.findMany({
+
+        where,
+
+        include: {
+
+            manufacturer: true,
+
+            stocks: {
+                where: filters.inStock
+                    ? {
+                          currentStock: {
+                              gt: 0
+                          }
+                      }
+                    : undefined,
+
+                include: {
+                    warehouse: true
+                }
+            }
+
+        }
+
+    });
+
+}
+
+export async function findPartWarehouse(keyword){
+
+    return prisma.stock.findMany({
+
+        where:{
+
+            part:{
+
+                OR:[
+
+                    {
+                        partName:{
+                            contains:keyword,
+                            mode:"insensitive"
+                        }
+                    },
+
+                    {
+                        description:{
+                            contains:keyword,
+                            mode:"insensitive"
+                        }
+                    }
+
+                ]
+
+            }
+
+        },
+
+        include:{
+
+            warehouse:true,
+
+            part:true
 
         }
 

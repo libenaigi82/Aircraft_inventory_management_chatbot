@@ -1,11 +1,20 @@
+import groq from "../config/groq.js";
 import { extractIntent } from "../ai/intentExtractor.js";
 import { formatResponse } from "../ai/responseFormatter.js";
 
+
 import * as inventory from "./inventory.service.js";
 
-export async function processQuery(message) {
+export async function processQuery(
+    message,
+    options={}
+){
 
-    const intent = await extractIntent(message);
+    const intent =
+    await extractIntent(
+        message,
+        options
+    );
 
     let result = null;
 
@@ -35,11 +44,12 @@ export async function processQuery(message) {
 
         case "MANUFACTURER_SEARCH":
 
-    result = await inventory.getPartsByManufacturer(
+    result = await inventory.getPartsAdvanced({
 
-        intent.manufacturer
+        manufacturer: intent.manufacturer,
+        inStock: intent.inStock
 
-    );
+    });
 
     break;
 
@@ -55,13 +65,25 @@ export async function processQuery(message) {
 
         case "WAREHOUSE_LOOKUP":
 
-            result = await inventory.getWarehouseInventory(
+    if(intent.keyword){
 
-                intent.warehouse
+        result = await inventory.findPartWarehouse(
 
-            );
+            intent.keyword
 
-            break;
+        );
+
+    }else{
+
+        result = await inventory.getWarehouseInventory(
+
+            intent.warehouse
+
+        );
+
+    }
+
+    break;
 
         case "AIRCRAFT_COMPATIBILITY":
 
@@ -85,11 +107,13 @@ export async function processQuery(message) {
 
     case "CERTIFICATION_SEARCH":
 
-    result = await inventory.getCertifiedParts(
+    result = await inventory.getCertifiedParts({
 
-        intent.certificationStatus
+        certificationStatus: intent.certificationStatus,
 
-    );
+        manufacturer: intent.manufacturer
+
+    });
 
     break;
 
@@ -104,5 +128,60 @@ export async function processQuery(message) {
     }
 
     return formatResponse(intent, result);
+
+}
+export async function generalChat(
+    message,
+    options = {}
+) {
+
+    const completion = await groq.chat.completions.create({
+
+        model: "llama-3.3-70b-versatile",
+
+        temperature: options.temperature ?? 0.7,
+
+        top_p: options.top_p ?? 1,
+
+        messages: [
+
+            {
+                role: "system",
+                content:
+`You are AeroMRO AI.
+
+You are friendly, professional and conversational.
+
+You can answer general questions naturally.
+
+Whenever the question is related to aircraft inventory,
+manufacturers,
+warehouses,
+ATA chapters,
+certifications,
+or aircraft compatibility,
+encourage the user to ask specific inventory questions.
+
+Keep answers concise.`
+            },
+
+            {
+                role: "user",
+                content: message
+            }
+
+        ]
+
+    });
+
+    return {
+
+        success: true,
+
+        timestamp: new Date().toISOString(),
+
+        reply: completion.choices[0].message.content
+
+    };
 
 }
